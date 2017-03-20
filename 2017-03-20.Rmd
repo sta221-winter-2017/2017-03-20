@@ -1,0 +1,168 @@
+---
+title: "STA221"
+author: "Neil Montgomery"
+date: "Last edited: `r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output: 
+  beamer_presentation:
+    keep_tex: TRUE
+    incremental: TRUE
+#    df_print: tibble
+    fig_caption: FALSE
+classoption: aspectratio=169
+header-includes:
+- \newcommand{\ve}{\varepsilon}
+- \newcommand{\dbar}[1]{\overline{\overline{#1}}}
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE,
+                      dev='pdf', fig.width=5, fig.asp=0.618, fig.align='center')
+options(tibble.width=70, scipen = 999, tibble.print_min=5, show.signif.stars = FALSE)
+library(tidyverse)
+```
+
+```{r}
+burn <- read.delim("chelating.txt", check.names = FALSE, 
+                   colClasses = c("factor", "factor", "numeric"))
+```
+
+
+
+## the analysis
+
+We have new sums of squares decompositions. The details can get brutal - so we'll stay symbolic. 
+
+We'll call the factor variables `A` and `B`, with $I$ and $J$ levels respectively.
+
+In the additive case we get, assuming a common sample size of $n$ for each combination of factor levels (strongly encouraged in practice!):
+
+$$SS_{Total} =  SS_A + SS_B + SS_{Error}$$
+
+\pause Everything has $\chi^2$ distributions. The degrees of freedom add up (N is the grand sample size):
+
+$$N-1 = (I-1) + (J-1) + (N-I-J+1)$$
+
+\pause When the experiment is \textit{balanced} (strongly encouraged!) with $n$ in each combination of levels, the error degrees of freedom simplifies to $IJ(n-1)$.
+
+## fire example - no interaction (?!)
+
+```{r}
+burn_fit <- burn %>% 
+  aov(`Burn-Times` ~ Bath + Launderings, data=.)
+summary(burn_fit)
+```
+
+## sums of squares - a few details
+
+The total sum of squares $SS_{Total}$ is (as always) $(N-1)$ times the sample varianace of the response variable:
+$$\sum_{i,j,k} \left(y_{ijk} - \dbar{y}\right)^2$$
+
+The treatment sums of squares will be:
+$$SS_A = nI\sum_i\left(\overline{y}_{i\cdot\cdot} - \dbar{y}\right)^2$$
+
+$$SS_B = nJ\sum_j\left(\overline{y}_{\cdot j \cdot} - \dbar{y}\right)^2$$
+
+where the dots in the subscript mean "averaged over this index."
+
+\pause The key thing to note is that each treatment sum of squares is computed using the average over all levels of the other treatment...
+
+\pause ...which only makes sense when there is no interaction.
+
+## error sum of squares
+
+For the sake of completeness:
+
+$$SS_{Error} = \sum_{i,j,k} \left(y_{ijk} -\overline{y}_{ij\cdot}\right)^2$$
+
+Note that $y_{ijk} -\overline{y}_{ij\cdot}$ is also called a "residual".
+
+## model assumptions
+
+Mostly the same as with one treatment factor, with the same verification techniques.
+
+1. Observations are independent (this is assumed - only knowledge of the experiment itself is of any help in satisfying this assumption.)
+
+2. Equal variance for all combinations of levels of treatment factors. (Plots, or Levene's test when $n$ is not too small.) (Fatal if violated.)
+
+3. Normal error (normal quantile plot of residuals) (Violation OK if sample size is large enough.)
+
+\pause When $n=1$, the lack of interaction is also an *assumption*. 
+
+## fire retardant model assumptions - equal variance
+
+Plot of residuals versus "fitted values" (in this case, just the group averages):
+
+```{r}
+library(broom)
+augment(burn_fit) %>% 
+  ggplot(aes(x=.fitted, y=.resid)) + geom_jitter(width = 0.1, height=0.1)
+```
+
+## fire retardant model assumptions - equal variance
+
+Since $n=12$ Levene's test also works:
+
+ 
+```{r}
+library(car)
+burn %>% leveneTest(`Burn-Times` ~ Launderings*Bath, data=.)
+```
+
+## fire retardant model assumptions - normality
+
+```{r}
+augment(burn_fit) %>% 
+  ggplot(aes(sample=.resid)) + geom_qq()
+```
+
+## the general model and analysis (with interaction)
+
+This model has the $(\tau\gamma)$ interaction term:
+
+$$y_{ijk} = \mu + \tau_i + \gamma_j + (\tau\gamma)_{ij} +  \ve_{ijk} \qquad \text{ general model}$$
+
+\pause The sum of squares decomposition is now:
+
+$$SS_{Total} = SS_{A} + SS_{B} + SS_{AB} + SS_{Error}$$
+
+\pause The interaction sum of squares is:
+$$n\sum_{i,j}\left(y_{ijk} - \overline{y}_{i\cdot\cdot} - \overline{y}_{\cdot j \cdot} + \dbar{y}\right)^2$$
+
+Small when additive; large when not.
+
+## degrees of freedom - balanced case
+
+\begin{align*}
+SS_{Total} &= SS_{A} + SS_{B} + SS_{AB} + SS_{Error}\\
+(N-1) &= (I-1) + (J-1) + (I-1)(J-1) + IJ(n-1)
+\end{align*}
+
+Note: $IJ(n-1) = N - IJ$
+
+We get (in addition):
+
+$$\frac{SS_{AB}/(I-1)(J-1)}{SS_{Error}/IJ(n-1)} \sim F_{(I-1)(J-1), IJ(n-1)}$$
+
+If there is evidence for interaction, do not try to interpret the "main effects". 
+
+## flame retardant with interaction
+
+Flame retardant example, with interaction (and without):
+
+```{r}
+burn_fit_int <- burn %>%
+  aov(`Burn-Times` ~ Bath*Launderings, data=.)
+summary(burn_fit_int)
+summary(burn_fit)  
+```
+
+## unreplicated designs
+
+If $n=1$, it is possible to proceed with the analysis, \textit{if you can assume there is no interaction.}
+
+\pause It isn't possible to test for interaction when $n=1$. In principle, because there is no variation within each combination to estimate.
+
+\pause Also, the ANOVA table wouldn't work!
+
+\pause The technique is to use $SS_{AB}$ as the error sum of squares.
+
