@@ -17,7 +17,7 @@ header-includes:
 ```{r setup, include=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message=FALSE,
                       dev='pdf', fig.width=5, fig.asp=0.618, fig.align='center')
-options(tibble.width=70, scipen = 999, tibble.print_min=5, show.signif.stars = FALSE)
+options(tibble.width=70, tibble.print_min=5, show.signif.stars = FALSE)
 library(tidyverse)
 ```
 
@@ -165,4 +165,42 @@ If $n=1$, it is possible to proceed with the analysis, \textit{if you can assume
 \pause Also, the ANOVA table wouldn't work!
 
 \pause The technique is to use $SS_{AB}$ as the error sum of squares.
+
+## another overall example
+
+Chromatography example. 
+
+Two factors: flow rate (fast and slow); Concentration (low, med, high)
+
+## interaction plot
+
+```{r}
+ch <- read.csv("Chromatography.csv")
+with(ch, interaction.plot(Concentration, Flow.Rate, Counts))
+```
+
+
+## analysis
+
+```{r}
+ch_fit <- ch %>% 
+  aov(Counts ~ Flow.Rate*Concentration, data=.) 
+summary(ch_fit)
+  
+```
+
+## assumptions
+
+```{r}
+ch %>% leveneTest(Counts ~ Concentration*Flow.Rate, data=.)
+```
+
+## assumptions
+
+```{r}
+library(broom)
+augment(ch_fit) %>% 
+  ggplot(aes(sample=.resid)) + geom_qq()
+```
+
 
